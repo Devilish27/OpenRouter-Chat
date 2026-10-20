@@ -1,8 +1,8 @@
 Version 1.0 Features:
-100% portable, your settings, favorites and chats are saved in data folder
-100 times smaller than other chat clients
-Model filters, favorite models, thinking effort selection
-Copy or download generated html documents
+-100% portable, your settings, favorites and chats are saved in data folder.
+-100 times smaller than other chat clients.
+-Model filters, favorite models, thinking effort selection.
+-Copy or download generated html documents.
 
 
 # OpenRouter Chat: building from source
