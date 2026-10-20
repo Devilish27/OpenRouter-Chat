@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenRouter Chat</title>
+<style>
+:root{--bg:#f6f7f5;--panel:#fff;--ink:#1c2321;--mute:#6b7773;--line:#dde2df;--accent:#0f6b5c;--accent-ink:#fff;--user:#e3efec;--code:#eef1ef;--err:#b3261e;--sel:#e9eeec;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#121615;--panel:#1a201f;--ink:#e4eae7;--mute:#8d9a95;--line:#2b3331;--accent:#3fb59f;--accent-ink:#08201b;--user:#1f2f2b;--code:#232b29;--err:#f2867e;--sel:#242d2b;color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{display:flex;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+input,select,textarea,button{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:7px 10px;min-width:0}
+button{cursor:pointer;background:var(--panel)}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+aside{width:260px;flex:none;display:flex;flex-direction:column;gap:10px;padding:12px;background:var(--panel);border-right:1px solid var(--line)}
+#list{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:2px;margin:0 -4px}
+.it{display:flex;align-items:center;gap:4px;padding:6px 8px;border-radius:6px;cursor:pointer}
+.it:hover,.it.on{background:var(--sel)}
+.it span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.it button{border:0;background:none;color:var(--mute);padding:0 4px;visibility:hidden}
+.it:hover button{visibility:visible}
+details{border-top:1px solid var(--line);padding-top:10px}
+summary{cursor:pointer;color:var(--mute)}
+details label{display:block;margin-top:8px;color:var(--mute);font-size:13px}
+details input{width:100%;margin-top:4px}
+details button{margin-top:10px;width:100%}
+main{flex:1;min-width:0;display:flex;flex-direction:column}
+.bar{display:flex;gap:6px;padding:10px 14px;background:var(--panel);border-bottom:1px solid var(--line)}
+.bar input{flex:1}.bar select{flex:2}
+#fav{font-size:17px;line-height:1;padding:4px 10px}
+.bar #effort{flex:none}
+.think{margin:0 0 8px;color:var(--mute);font-size:13px}
+.think summary{cursor:pointer}
+.think .tb{margin-top:6px;padding-left:10px;border-left:2px solid var(--line);white-space:pre-wrap;overflow-wrap:anywhere}
+.lw{flex:1;min-height:0;position:relative;display:flex;flex-direction:column}
+#log{flex:1;overflow-y:auto;padding:18px 14px}
+#down{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);border-radius:999px;padding:4px 14px;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.cbw{margin:8px 0;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.cbh{display:flex;justify-content:space-between;align-items:center;padding:3px 8px;background:var(--sel);color:var(--mute);font-size:12px;border-bottom:1px solid var(--line)}
+.cbh button{padding:2px 8px;font-size:12px;margin-left:6px}
+.cbw pre{margin:0;border-radius:0}
+.wrap{max-width:780px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.m{padding:10px 14px;border-radius:10px;white-space:pre-wrap;overflow-wrap:anywhere}
+.m.user{background:var(--user);align-self:flex-end;max-width:90%}
+.m.assistant{background:var(--panel);border:1px solid var(--line)}
+.m pre{background:var(--code);border-radius:6px;padding:10px;margin:8px 0;overflow-x:auto;white-space:pre}
+.m code{font:13px/1.45 ui-monospace,Consolas,monospace;background:var(--code);padding:1px 5px;border-radius:4px}
+.m pre code{background:none;padding:0}
+.empty{color:var(--mute);text-align:center;margin-top:12vh}
+footer{padding:10px 14px 14px}
+footer .wrap{flex-direction:row;align-items:flex-end;gap:8px}
+textarea{flex:1;resize:none;min-height:42px;background:var(--panel)}
+#status{max-width:780px;margin:0 auto 6px;color:var(--mute);font-size:12px;min-height:16px}
+#status.err{color:var(--err)}
+</style>
+</head>
+<body>
+<aside>
+  <button id="new" class="primary">New chat</button>
+  <div id="list"></div>
+  <details id="set">
+    <summary>Settings</summary>
+    <label>OpenRouter API key<input id="key" type="password" placeholder="sk-or-…" autocomplete="off" spellcheck="false"></label>
+    <button id="quit">Quit app</button>
+  </details>
+</aside>
+<main>
+  <div class="bar">
+    <input id="filter" type="search" placeholder="Filter models…">
+    <select id="model" aria-label="Model"><option>Loading models…</option></select>
+    <button id="fav" title="Add or remove from favorites">☆</button>
+    <select id="effort" aria-label="Thinking effort" style="display:none"></select>
+  </div>
+  <div class="lw"><div id="log"><div class="wrap" id="msgs"></div></div><button id="down" hidden title="Jump to latest">↓ Latest</button></div>
+  <footer>
+    <div id="status"></div>
+    <div class="wrap">
+      <textarea id="input" rows="1" placeholder="Message… (Enter to send, Shift+Enter for a new line)"></textarea>
+      <button id="send" class="primary">Send</button>
+    </div>
+  </footer>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const api = async (method, url, body) => {
+  const r = await fetch(url, { method, body: body === undefined ? undefined : JSON.stringify(body) });
+  if (!r.ok) throw new Error(r.status);
+  return r.status === 204 ? null : r.json();
+};
+const newChat = () => ({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), title: 'New chat', model: '', updated: '', messages: [] });
+
+let S = { key: '', favorites: [], model: '', effort: '' };
+let models = [], chat = newChat(), ctrl = null;
+
+/* ---------- formatting ---------- */
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const inline = s => esc(s).replace(/`([^`\n]+)`/g,'<code>$1</code>').replace(/\*\*([^*\n]+)\*\*/g,'<b>$1</b>');
+const fmt = t => {
+  const parts = t.split('```');
+  return parts.map((p, i) => {
+    if (i % 2 === 0) return inline(p);
+    const nl = p.indexOf('\n'), lang = nl < 0 ? '' : p.slice(0, nl).trim(), code = (nl < 0 ? p : p.slice(nl + 1)).replace(/\n$/, '');
+    const pre = '<pre><code>' + esc(code) + '</code></pre>';
+    if (i === parts.length - 1) return pre; // fence still open: block is being written
+    const html = /^html?$/i.test(lang) || /^\s*<(!doctype html|html)/i.test(code);
+    return '<div class="cbw"><div class="cbh"><span>' + esc(lang || 'code') + '</span><span><button data-act="copy">Copy</button>' +
+      (html ? '<button data-act="dl">Download .html</button>' : '') + '</span></div>' + pre + '</div>';
+  }).join('');
+};
+
+/* ---------- messages ---------- */
+function bubble(role, text, reasoning, secs) {
+  const d = document.createElement('div');
+  d.className = 'm ' + role;
+  if (role === 'user') d.textContent = text;
+  else {
+    const b = document.createElement('div');
+    b.className = 'body'; b.innerHTML = fmt(text);
+    d.appendChild(b);
+    if (reasoning) setThink(d, reasoning, secs === undefined ? null : secs, false);
+  }
+  $('msgs').appendChild(d);
+  return d;
+}
+function setThink(d, text, secs, open) {
+  let t = d.querySelector('.think');
+  if (!t) {
+    t = document.createElement('details'); t.className = 'think';
+    t.innerHTML = '<summary></summary><div class="tb"></div>';
+    d.insertBefore(t, d.firstChild);
+  }
+  t.querySelector('.tb').textContent = text;
+  t.querySelector('summary').textContent = secs == null ? 'Thinking…' : (secs < 1 ? 'Thought briefly' : 'Thought for ' + secs + ' s');
+  if (open !== undefined) t.open = open;
+}
+let stick = true; // follow new text only while the user is at the bottom
+const atBottom = () => { const l = $('log'); return l.scrollHeight - l.scrollTop - l.clientHeight < 40; };
+const scroll = force => {
+  const l = $('log');
+  if (force) stick = true;
+  if (stick) l.scrollTop = l.scrollHeight;
+  $('down').hidden = stick;
+};
+function renderChat() {
+  $('msgs').innerHTML = chat.messages.length ? '' : '<div class="empty">Add your API key under Settings, pick a model and start typing.</div>';
+  chat.messages.forEach(m => bubble(m.role, m.content, m.reasoning, m.secs));
+  scroll(true);
+}
+function status(t, err) { $('status').textContent = t || ''; $('status').className = err ? 'err' : ''; }
+
+/* ---------- chat list ---------- */
+async function refreshList() {
+  let items = [];
+  try { items = await api('GET', '/api/chats'); } catch {}
+  const list = $('list');
+  list.innerHTML = '';
+  items.forEach(c => {
+    const row = document.createElement('div');
+    row.className = 'it' + (c.id === chat.id ? ' on' : '');
+    row.title = new Date(c.updated).toLocaleString() + ' (double-click to rename)';
+    const t = document.createElement('span'); t.textContent = c.title;
+    const x = document.createElement('button'); x.textContent = '×'; x.title = 'Delete chat';
+    row.append(t, x);
+    row.onclick = () => openChat(c.id);
+    row.ondblclick = async () => {
+      const name = prompt('Rename chat', c.title);
+      if (!name || !name.trim()) return;
+      const full = await api('GET', '/api/chats/' + c.id);
+      full.title = name.trim();
+      await api('PUT', '/api/chats/' + c.id, full);
+      if (chat.id === c.id) chat.title = full.title;
+      refreshList();
+    };
+    x.onclick = async e => {
+      e.stopPropagation();
+      if (!confirm('Delete “' + c.title + '”?')) return;
+      await api('DELETE', '/api/chats/' + c.id);
+      if (chat.id === c.id) startNew();
+      refreshList();
+    };
+    list.appendChild(row);
+  });
+}
+async function openChat(id) {
+  if (ctrl) ctrl.abort();
+  try { chat = await api('GET', '/api/chats/' + id); } catch { status('Could not open that chat.', true); return; }
+  if (chat.model && [...$('model').options].some(o => o.value === chat.model)) $('model').value = chat.model;
+  updateFav(); fillEffort(); renderChat(); refreshList(); status('');
+}
+function startNew() {
+  if (ctrl) ctrl.abort();
+  chat = newChat(); renderChat(); refreshList(); status(''); $('input').focus();
+}
+async function saveChat(c) {
+  c.updated = new Date().toISOString();
+  c.model = $('model').value || c.model;
+  if (c.title === 'New chat') { const f = c.messages.find(m => m.role === 'user'); if (f) c.title = f.content.replace(/\s+/g, ' ').slice(0, 48); }
+  try { await api('PUT', '/api/chats/' + c.id, c); } catch { status('Could not save this chat to disk.', true); }
+  refreshList();
+}
+
+/* ---------- models & favorites ---------- */
+function opt(m) {
+  const o = document.createElement('option');
+  o.value = m.id;
+  o.textContent = (m.name || m.id) + (m.pricing && +m.pricing.prompt === 0 && +m.pricing.completion === 0 ? ' (free)' : '');
+  return o;
+}
+function fillModels() {
+  const q = $('filter').value.trim().toLowerCase();
+  const cur = $('model').value || S.model;
+  const hit = m => !q || m.id.toLowerCase().includes(q) || (m.name || '').toLowerCase().includes(q);
+  const favs = models.filter(m => S.favorites.includes(m.id) && hit(m));
+  const rest = models.filter(hit);
+  const sel = $('model'); sel.innerHTML = '';
+  if (favs.length) {
+    const g = document.createElement('optgroup'); g.label = '★ Favorites';
+    favs.forEach(m => g.appendChild(opt(m))); sel.appendChild(g);
+  }
+  const g2 = document.createElement('optgroup'); g2.label = 'All models';
+  rest.forEach(m => g2.appendChild(opt(m))); sel.appendChild(g2);
+  if (![...sel.options].some(o => o.value === cur)) { /* keep first option */ } else sel.value = cur;
+  updateFav(); fillEffort();
+}
+function fillEffort() {
+  const sel = $('effort'), m = models.find(x => x.id === $('model').value);
+  const r = m && m.reasoning, ok = m && (r || (m.supported_parameters || []).includes('reasoning'));
+  sel.innerHTML = '';
+  sel.style.display = ok ? '' : 'none';
+  if (!ok) return;
+  const add = (v, t) => { const o = document.createElement('option'); o.value = v; o.textContent = 'Thinking: ' + t; sel.appendChild(o); };
+  const d = r && r.default_effort && r.default_effort !== 'none' ? ' (' + r.default_effort + ')' : '';
+  add('', 'default' + d);
+  if (!(r && r.mandatory)) add('none', 'off');
+  const list = r && r.supported_efforts ? r.supported_efforts.filter(e => e !== 'none').slice().reverse() : ['minimal', 'low', 'medium', 'high', 'xhigh'];
+  list.forEach(e => add(e, e));
+  sel.value = [...sel.options].some(o => o.value === S.effort) ? S.effort : '';
+}
+function updateFav() { $('fav').textContent = S.favorites.includes($('model').value) ? '★' : '☆'; }
+const saveSettings = () => api('PUT', '/api/settings', S).catch(() => status('Could not save settings.', true));
+async function loadModels() {
+  try {
+    const j = await (await fetch('https://openrouter.ai/api/v1/models')).json();
+    models = (j.data || []).sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id));
+    fillModels();
+  } catch { $('model').innerHTML = '<option value="">Could not load models (check connection)</option>'; }
+}
+
+/* ---------- sending ---------- */
+async function send() {
+  if (ctrl) return;
+  const text = $('input').value.trim(), key = $('key').value.trim(), model = $('model').value;
+  if (!text) return;
+  if (!key) { $('set').open = true; $('key').focus(); status('Enter your OpenRouter API key under Settings.', true); return; }
+  if (!model) { status('Pick a model first.', true); return; }
+
+  const c = chat;
+  if (!c.messages.length) $('msgs').innerHTML = '';
+  c.messages.push({ role: 'user', content: text });
+  const uEl = bubble('user', text), el = bubble('assistant', '');
+  $('input').value = ''; autosize(); scroll(true);
+
+  const body = el.querySelector('.body');
+  let reply = '', thinking = '', secs = null, t0 = 0, failed = null;
+  ctrl = new AbortController();
+  $('send').textContent = 'Stop';
+  status('Waiting for ' + model + '…');
+  try {
+    const r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST', signal: ctrl.signal,
+      headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json', 'X-Title': 'OpenRouter Chat' },
+      body: JSON.stringify({ model, messages: c.messages.map(({ role, content }) => ({ role, content })), stream: true, reasoning: $('effort').value ? { effort: $('effort').value } : undefined })
+    });
+    if (!r.ok) {
+      let msg = r.status + ' ' + r.statusText;
+      try { msg = (await r.json()).error.message || msg; } catch {}
+      throw new Error(msg);
+    }
+    const rd = r.body.getReader(), dec = new TextDecoder();
+    let buf = '';
+    for (;;) {
+      const { done, value } = await rd.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split('\n'); buf = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const d = line.slice(6).trim();
+        if (d === '[DONE]') continue;
+        let j; try { j = JSON.parse(d); } catch { continue; }
+        if (j.error) throw new Error(j.error.message || 'Stream error');
+        const dl = (j.choices && j.choices[0] && j.choices[0].delta) || {};
+        let rs = typeof dl.reasoning === 'string' ? dl.reasoning : typeof dl.reasoning_content === 'string' ? dl.reasoning_content : '';
+        if (!rs && Array.isArray(dl.reasoning_details)) rs = dl.reasoning_details.map(x => x.text || x.summary || '').join('');
+        if (rs) {
+          if (!t0) t0 = Date.now();
+          thinking += rs;
+          setThink(el, thinking, secs, secs === null && thinking === rs ? true : undefined);
+          if (c === chat) scroll();
+        }
+        if (dl.content) {
+          if (thinking && secs === null) { secs = Math.round((Date.now() - t0) / 1000); setThink(el, thinking, secs, false); }
+          reply += dl.content; body.innerHTML = fmt(reply);
+          if (c === chat) scroll();
+        }
+      }
+    }
+  } catch (e) { if (e.name !== 'AbortError') failed = e.message; }
+
+  ctrl = null;
+  $('send').textContent = 'Send';
+  if (thinking && secs === null) { secs = Math.round((Date.now() - t0) / 1000); setThink(el, thinking, secs, false); }
+  if (reply) {
+    c.messages.push({ role: 'assistant', content: reply, reasoning: thinking || undefined, secs: thinking ? secs : undefined });
+    status(failed ? 'Reply cut short: ' + failed : '', !!failed);
+  } else {
+    c.messages.pop(); uEl.remove(); el.remove();
+    if (c === chat) { $('input').value = text; autosize(); }
+    status(failed ? 'Error: ' + failed : 'Stopped.', !!failed);
+  }
+  if (c.messages.length) saveChat(c);
+}
+function autosize() {
+  const t = $('input'); t.style.height = 'auto';
+  t.style.height = Math.min(t.scrollHeight + 2, innerHeight * 0.4) + 'px';
+}
+
+/* ---------- wiring ---------- */
+$('log').addEventListener('scroll', () => { stick = atBottom(); $('down').hidden = stick; });
+$('down').onclick = () => scroll(true);
+$('msgs').addEventListener('click', e => {
+  const b = e.target.closest('button[data-act]');
+  if (!b) return;
+  const code = b.closest('.cbw').querySelector('code').textContent;
+  if (b.dataset.act === 'dl') return download(code);
+  navigator.clipboard.writeText(code).then(() => { b.textContent = 'Copied'; setTimeout(() => { b.textContent = 'Copy'; }, 1200); }).catch(() => {});
+});
+function download(code) {
+  const m = code.match(/<title[^>]*>([^<]{1,80})<\/title>/i);
+  const base = m ? m[1].trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') : '';
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([code + '\n'], { type: 'text/html' }));
+  a.download = (base || 'document') + '.html';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+$('new').onclick = startNew;
+$('send').onclick = () => ctrl ? ctrl.abort() : send();
+$('input').oninput = autosize;
+$('input').onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } };
+$('filter').oninput = fillModels;
+$('model').onchange = () => { S.model = $('model').value; updateFav(); fillEffort(); saveSettings(); };
+$('effort').onchange = () => { S.effort = $('effort').value; saveSettings(); };
+$('fav').onclick = () => {
+  const id = $('model').value; if (!id) return;
+  S.favorites = S.favorites.includes(id) ? S.favorites.filter(x => x !== id) : [...S.favorites, id];
+  S.model = id; saveSettings(); fillModels();
+};
+$('key').onchange = () => { S.key = $('key').value.trim(); saveSettings(); };
+$('quit').onclick = async () => {
+  if (!confirm('Quit OpenRouter Chat? Your chats are saved.')) return;
+  try { await api('POST', '/api/quit'); } catch {}
+  document.body.innerHTML = '<p style="margin:20vh auto;text-align:center">Closed. You can close this tab.</p>';
+};
+
+(async () => {
+  const ping = () => fetch('/api/ping').catch(() => {});
+  ping(); setInterval(ping, 10000);
+  try { Object.assign(S, await api('GET', '/api/settings')); } catch {}
+  $('key').value = S.key || '';
+  if (!S.key) $('set').open = true;
+  renderChat(); refreshList(); loadModels();
+})();
+</script>
+</body>
+</html>
