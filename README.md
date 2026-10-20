@@ -1,99 +1,117 @@
-<br>Version 1.0 Features:<br />
-<br>-100% portable, your settings, favorites and chats are saved in data folder.<br />
-<br>-100 times smaller than other chat clients.<br />
-<br>-Model filters, favorite models, thinking effort selection.<br />
-<br>-Copy or download generated html documents.<br />
+# OpenRouter Chat
 
+A tiny, fast, portable chat client for [OpenRouter](https://openrouter.ai) models on Windows.
+One small exe, no installer, no account, no telemetry. It is not an Electron app, so it
+stays light: the exe is about 6 MB.
 
-# OpenRouter Chat: building from source
+<!-- Add a screenshot here: ![OpenRouter Chat](screenshot.png) -->
 
-A tiny local chat client for OpenRouter. One Go program (`main.go`) that embeds
-one web page (`index.html`) and stores everything as JSON files next to the exe.
+## Download
 
-    source/
-      main.go      local server: serves the page, saves settings and chats to disk
-      index.html   the entire UI (HTML + CSS + JS, no libraries, no build step)
-      go.mod       module file (no third-party dependencies)
+1. Go to the [**Releases**](https://github.com/Devilish27/OpenRouter-Chat/releases) page and download the latest zip.
+2. Unzip it anywhere (a USB stick works too).
+3. Double-click `OpenRouterChat.exe`. Your browser opens the chat.
 
-## Dependencies
+Windows SmartScreen may warn about an unsigned app the first time. Click **More info**, then
+**Run anyway**. If you would rather not trust a binary, [build it yourself](#build-from-source)
+in one command.
 
-Only one: the **Go toolchain, version 1.19 or newer** (developed and tested with 1.22).
+## Features
 
-- No third-party Go modules (standard library only), so no internet is needed to build.
-- No Node.js, npm, Python, C compiler or CGO.
-- No external JS/CSS/fonts in the page. It works fully offline except for the calls to
-  `openrouter.ai`, which the browser makes directly.
-- At runtime the exe needs a web browser (it opens your default one) and Windows 10 or newer.
+- **Fully portable.** Settings, favorites and chats live in a `data` folder next to the exe.
+  Copy the folder to move everything to another PC.
+- **Saved chats.** Every chat is saved automatically. Reopen, rename (double-click) or delete
+  them from the sidebar.
+- **Any OpenRouter model.** The full model list loads automatically, with a filter box and a
+  free-model label.
+- **Favorite models.** Click the star next to the model picker. Favorites are listed first.
+- **Thinking and effort control.** For models that support reasoning, pick Default, Off or an
+  effort level (minimal up to xhigh, whatever the model allows). Thinking streams into a
+  collapsible "Thought for N s" section and is saved with the chat.
+- **Streaming replies** with a Stop button.
+- **Smart scrolling.** The view follows new text only while you are at the bottom. Scroll up
+  and it stays put, with a "Latest" button to jump back.
+- **Code blocks with Copy buttons**, and a **Download .html** button when the AI writes a
+  complete HTML document.
+- Follows your system light or dark mode.
 
-### Install Go on Windows
+## Quick start
 
-Either run `winget install GoLang.Go` in a terminal, or download the installer from
-https://go.dev/dl/. Then open a **new** terminal and check with `go version`.
+1. Create an API key at [openrouter.ai/keys](https://openrouter.ai/keys).
+2. In the app, open **Settings** (bottom left) and paste the key. It is saved for next time.
+3. Pick a model, type a message, press Enter (Shift+Enter for a new line).
 
-## Build the Windows exe
+To quit, use **Settings, Quit app**. It also closes itself about two and a half minutes after
+you close the browser tab. Starting it again while it runs just reopens the page.
 
-In a terminal inside this `source` folder:
+## Privacy and security
 
-    go build -trimpath -ldflags="-s -w -H=windowsgui" -o OpenRouterChat.exe .
+- Your browser talks **directly to openrouter.ai**. The local program never sees your prompts
+  or replies; it only stores your saved chats and settings on disk.
+- The local server listens on `127.0.0.1` only, and rejects requests from other websites.
+- Your **API key is stored as plain text** in `data/settings.json`. Do not share or commit
+  that folder. If you build inside a clone of this repo, make sure `data/` is in your `.gitignore`.
+- There is no analytics, update check or other network traffic besides OpenRouter.
 
-What the flags do:
+## Build from source
 
-- `-H=windowsgui` makes it a GUI program, so no black console window appears.
-  Leave it out while debugging to see errors in a console.
-- `-s -w` strips debug info (smaller exe, about 6 MB).
-- `-trimpath` removes your local paths from the binary.
+You need only the [Go toolchain](https://go.dev/dl/) 1.19 or newer (tested with 1.22).
+There are no third-party modules, no Node.js and no C compiler, and no internet is needed to build.
 
-Copy `OpenRouterChat.exe` wherever you like. The `data` folder is created next to it
-on first run.
+```
+winget install GoLang.Go
+go build -trimpath -ldflags="-s -w -H=windowsgui" -o OpenRouterChat.exe .
+```
 
-### Cross-compiling (from Linux or macOS)
+- `-H=windowsgui` hides the console window. Leave it out while debugging.
+- `-s -w` shrinks the binary, and `-trimpath` removes local paths from it.
+- Quick test without building: `go run .` (set `NOOPEN=1` to stop it opening a browser tab).
 
-    GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -H=windowsgui" -o OpenRouterChat.exe .
+Cross-compile from Linux or macOS:
 
-PowerShell equivalent when building for another OS: `$env:GOOS="linux"; go build -o OpenRouterChat .`
-Use `GOARCH=arm64` for Windows on ARM.
+```
+GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -H=windowsgui" -o OpenRouterChat.exe .
+```
 
-### Run without building
+The code also builds for Linux and macOS (it opens the default browser with `xdg-open` or
+`open`), but only Windows has been tested end to end.
 
-    go run .
-
-Set the environment variable `NOOPEN=1` to stop it from opening a browser tab (then
-browse to http://127.0.0.1:47821 yourself).
-
-## Editing the UI
-
-`index.html` is embedded into the exe at compile time (`//go:embed`), so **rebuild after
-every change** (`go run .` is the quickest way to try a change).
+`index.html` is embedded into the exe at compile time, so rebuild after editing it.
 
 ## How it works
 
-- **Server:** listens on `127.0.0.1` only, trying ports 47821 to 47830. If another copy is
-  already running, a second launch just opens the browser at it and exits.
-- **Safety:** requests with an unexpected `Host` or `Origin` header are rejected (403), so
-  other websites can't read your saved key through your browser.
-- **Lifetime:** the page pings `/api/ping` every 10 s; the program exits when no ping has
-  arrived for 150 s, or when `POST /api/quit` is called (Settings > Quit app).
-- **API calls:** the browser talks to OpenRouter directly (`/models` and `/chat/completions`
-  with streaming). The local server never sees your prompts, only the saved chats.
+| File | Role |
+| --- | --- |
+| `main.go` | Local server on `127.0.0.1` (ports 47821 to 47830). Serves the page and saves settings and chats as JSON. |
+| `index.html` | The whole UI: HTML, CSS and JavaScript, with no libraries and no build step. |
+
+The page pings `/api/ping` every 10 seconds, and the program exits when pings stop for 150
+seconds. Files are written atomically (temp file, then rename), so a crash will not corrupt them.
 
 Endpoints: `GET/PUT /api/settings`, `GET /api/chats`, `GET/PUT/DELETE /api/chats/<id>`,
 `GET /api/ping`, `POST /api/quit`.
 
-## Data files (`data/` next to the exe)
+### Data files
 
-- `settings.json`: `{ "key", "favorites": [model ids], "model", "effort" }`
-  (the API key is stored as plain text)
-- `chats/<id>.json`: `{ "id", "title", "model", "updated", "messages": [ { "role", "content",
-  "reasoning"?, "secs"? } ] }`
-
-Files are written atomically (temp file, then rename), so a crash won't corrupt them.
+- `data/settings.json`: `{ "key", "favorites": [model ids], "model", "effort" }`
+- `data/chats/<id>.json`: `{ "id", "title", "model", "updated", "messages": [ { "role", "content", "reasoning"?, "secs"? } ] }`
 
 ## Troubleshooting
 
-- **`go: ... requires go >= ...` or a toolchain download error:** your Go is older than the
-  version in `go.mod`. Update Go, or lower the `go` line (minimum is 1.19).
-- **Windows SmartScreen or antivirus flags the exe:** it is unsigned. Building it yourself
-  from this source is the cleanest answer. Choose "More info" > "Run anyway".
-- **Nothing opens:** the browser launch failed. Open http://127.0.0.1:47821 manually.
-- **Page says it can't reach the server:** the program exited (it quits ~2.5 minutes after
-  the last tab closed). Start the exe again.
+- **SmartScreen or antivirus flags the exe.** It is unsigned. Building it yourself from this
+  source is the cleanest answer.
+- **Nothing opens.** Browse to <http://127.0.0.1:47821> manually.
+- **The page can't reach the server.** The program exited (it quits shortly after the last tab
+  closes). Start the exe again.
+- **No thinking shown for a model.** Some models (for example OpenAI's o-series) reason
+  internally but do not return their reasoning. The effort setting still affects the answer.
+- **Build error mentioning a Go version or toolchain.** Update Go to 1.19 or newer.
+
+## Notes
+
+Reasoning tokens are billed as output tokens, so higher effort costs more and is slower.
+This project is not affiliated with OpenRouter.
+
+## License
+
+MIT (see `LICENSE`).
