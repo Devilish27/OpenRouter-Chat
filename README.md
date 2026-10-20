@@ -4,7 +4,7 @@ A tiny, fast, portable chat client for [OpenRouter](https://openrouter.ai) model
 One small exe, no installer, no account, no telemetry. It is not an Electron app, so it
 stays light: the exe is about 6 MB.
 
-<!-- Add a screenshot here: ![OpenRouter Chat](screenshot.png) -->
+<img width="1117" height="902" alt="screnshot" src="https://github.com/user-attachments/assets/b9d1826f-6c7e-43cb-83e7-7bd15ac4717e" />
 
 ## Download
 
